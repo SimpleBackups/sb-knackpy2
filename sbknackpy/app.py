@@ -622,6 +622,3 @@ class App:
             max_attempts=self.max_attempts,
             timeout=self.timeout,
         )
-
-    def hello(self):
-        print("Hello World")
