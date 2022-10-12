@@ -329,12 +329,12 @@ class App:
             records_formatted.append(record_formatted)
         return records_formatted
 
-    def to_csv(
+    def to_newcsv(
         self,
         identifier: str,
-        file_name_postfix: str = "",
         *,
         out_dir: str = "_csv",
+        file_name_postfix: str = "",
         delimiter=",",
         record_limit: int = None,
         filters: typing.Union[dict, list] = None,
