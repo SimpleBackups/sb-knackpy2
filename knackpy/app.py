@@ -334,6 +334,7 @@ class App:
         identifier: str,
         *,
         out_dir: str = "_csv",
+        file_name_postfix: str = "",
         delimiter=",",
         record_limit: int = None,
         filters: typing.Union[dict, list] = None,
@@ -360,7 +361,7 @@ class App:
 
         fieldnames = csv_data[0].keys()
 
-        fname = os.path.join(out_dir, f"{identifier}.csv")
+        fname = os.path.join(out_dir, f"{identifier}{file_name_postfix}.csv")
 
         with open(fname, "w") as fout:
             writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=delimiter)
