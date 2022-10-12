@@ -332,9 +332,9 @@ class App:
     def to_csv(
         self,
         identifier: str,
+        file_name_postfix: str = "",
         *,
         out_dir: str = "_csv",
-        file_name_postfix: str = "",
         delimiter=",",
         record_limit: int = None,
         filters: typing.Union[dict, list] = None,
