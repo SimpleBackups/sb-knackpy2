@@ -18,7 +18,7 @@ def get_package_name(env):
     if env == "dev":
         return "knackpy-dev"
     else:
-        return "knackpy"
+        return "sb-knackpy2"
 
 
 def build_config(env, readme="README.md"):
@@ -43,10 +43,10 @@ def build_config(env, readme="README.md"):
         "keywords": "knack api api-client integration python",
         "license": "Public Domain",
         "name": package_name,
-        "packages": ["knackpy"],
+        "packages": ["sb-knackpy2"],
         "tests_require": ["pytest", "coverage"],
-        "url": "http://github.com/cityofaustin/knackpy",
-        "version": "1.1.2",
+        "url": "http://https://github.com/SimpleBackups/sb-knackpy2",
+        "version": "1.1.3",
     }
 
 
