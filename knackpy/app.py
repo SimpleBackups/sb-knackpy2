@@ -293,7 +293,7 @@ class App:
             and field_def.obj == obj
         ]
 
-    def _unpack_subfields(self, records: list) -> list:
+    def _unpack_subfields(self, records: list, field_filters: list = None) -> list:
         """Unpack subfields and for select field types so that they can be handled as
         individual columns in CSV. See `models.py` for subfield definitions.
 
@@ -306,9 +306,9 @@ class App:
         for record in records:
             record_formatted = {}
             for field in record.values():
-                print(field)
-                print(field.key)
-                print('\n')
+                if field.key in field_filters:
+                    continue
+
                 try:
                     subfields = FIELD_SETTINGS[field.field_def.type]["subfields"]
                 except KeyError:
@@ -338,6 +338,7 @@ class App:
         *,
         out_dir: str = "_csv",
         file_name: str = "",
+        field_filters: list = None,
         delimiter=",",
         record_limit: int = None,
         filters: typing.Union[dict, list] = None,
@@ -360,7 +361,7 @@ class App:
 
         records = self.get(identifier, record_limit=record_limit, filters=filters)
 
-        csv_data = self._unpack_subfields(records)
+        csv_data = self._unpack_subfields(records, field_filters)
 
         fieldnames = csv_data[0].keys()
 
