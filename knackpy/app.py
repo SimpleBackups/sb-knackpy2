@@ -306,6 +306,7 @@ class App:
         for record in records:
             record_formatted = {}
             for field in record.values():
+
                 if field.key in field_filters:
                     continue
 
