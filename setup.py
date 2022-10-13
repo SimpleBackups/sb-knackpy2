@@ -28,15 +28,15 @@ def build_config(env, readme="README.md"):
         long_description = fh.read()
 
     return {
-        "author": "John Clary",
-        "author_email": "john.clary@austintexas.gov",
+        "author": "Laurent Lemaire",
+        "author_email": "laurent@simplebackups.com",
         "classifiers": [
             "Development Status :: 4 - Beta",
             "Intended Audience :: Developers",
             "License :: Public Domain",
             "Programming Language :: Python :: 3",
         ],
-        "description": "A Python API client for interacting with Knack applications.",
+        "description": "A Python API client for interacting with Knack applications - For SimpleBackups",
         "long_description": long_description,
         "long_description_content_type": "text/markdown",
         "install_requires": ["pytz", "requests"],
@@ -45,7 +45,7 @@ def build_config(env, readme="README.md"):
         "name": package_name,
         "packages": ["knackpy"],
         "tests_require": ["pytest", "coverage"],
-        "url": "http://https://github.com/SimpleBackups/sb-knackpy2",
+        "url": "http://https://github.com/SimpleBackups/sb-knackpy",
         "version": "1.2.0",
     }
 
