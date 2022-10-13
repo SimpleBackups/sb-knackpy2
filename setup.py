@@ -46,7 +46,7 @@ def build_config(env, readme="README.md"):
         "packages": ["knackpy"],
         "tests_require": ["pytest", "coverage"],
         "url": "http://https://github.com/SimpleBackups/sb-knackpy2",
-        "version": "1.1.7",
+        "version": "1.1.8",
     }
 
 
