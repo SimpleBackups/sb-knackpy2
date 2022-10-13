@@ -306,6 +306,8 @@ class App:
         for record in records:
             record_formatted = {}
             for field in record.values():
+                print(field)
+                print('\n')
                 try:
                     subfields = FIELD_SETTINGS[field.field_def.type]["subfields"]
                 except KeyError:
@@ -329,7 +331,7 @@ class App:
             records_formatted.append(record_formatted)
         return records_formatted
 
-    def to_newcsv(
+    def to_csv(
         self,
         identifier: str,
         *,
