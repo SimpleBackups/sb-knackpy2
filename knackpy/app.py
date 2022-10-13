@@ -307,6 +307,7 @@ class App:
             record_formatted = {}
             for field in record.values():
                 print(field)
+                print(field.key)
                 print('\n')
                 try:
                     subfields = FIELD_SETTINGS[field.field_def.type]["subfields"]
