@@ -148,7 +148,7 @@ class App:
             matches = [
                 tz["iana_name"]
                 for tz in TIMEZONES
-                if tz["common_name"].lower() == tzinfo.lower()
+                if tzinfo.lower() in tz["common_name"].lower()
             ]
             return pytz.timezone(matches[0])
 
