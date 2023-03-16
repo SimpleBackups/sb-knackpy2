@@ -357,21 +357,25 @@ class App:
             filters (dict or list, optional): A dict or of Knack API filiters.
                 See: https://www.knack.com/developer-documentation/#filters.
         """
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
+        try:
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
 
-        records = self.get(identifier, record_limit=record_limit, filters=filters)
+            records = self.get(identifier, record_limit=record_limit, filters=filters)
 
-        csv_data = self._unpack_subfields(records, field_filters)
+            csv_data = self._unpack_subfields(records, field_filters)
 
-        fieldnames = csv_data[0].keys()
+            fieldnames = csv_data[0].keys()
 
-        fname = os.path.join(out_dir, f"{file_name}.csv")
+            fname = os.path.join(out_dir, f"{file_name}.csv")
 
-        with open(fname, "w") as fout:
-            writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=delimiter)
-            writer.writeheader()
-            writer.writerows(csv_data)
+            with open(fname, "w") as fout:
+                writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=delimiter)
+                writer.writeheader()
+                writer.writerows(csv_data)
+        except Exception as e:
+            print(e)
+            pass
 
     def _assemble_downloads(
         self, identifier: str, field_key: str, label_keys: list, out_dir: str
