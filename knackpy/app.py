@@ -72,6 +72,12 @@ class App:
             if not metadata
             else metadata["application"]
         )
+
+    
+        # Sanitize File Name, remove special characters
+        for object in self.metadata["objects"]:
+            object["name"] = "".join(x for x in object["name"] if x.isalnum() or x in ["_", "-"])
+
         self.slug = self.metadata["account"]["slug"]
         self.tzinfo = tzinfo if tzinfo else self.metadata["settings"]["timezone"]
         self.timezone = self._get_timezone(self.tzinfo)
