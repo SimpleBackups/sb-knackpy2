@@ -370,7 +370,6 @@ class App:
 
         csv_data = self._unpack_subfields(records, field_filters)
 
-        # fieldnames = csv_data[0].keys()
         fieldnames = None
 
         for record in csv_data:
