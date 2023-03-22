@@ -72,6 +72,12 @@ class App:
             if not metadata
             else metadata["application"]
         )
+
+    
+        # Sanitize File Name, remove special characters
+        for object in self.metadata["objects"]:
+            object["name"] = "".join(x for x in object["name"] if x.isalnum() or x in ["_", "-"])
+
         self.slug = self.metadata["account"]["slug"]
         self.tzinfo = tzinfo if tzinfo else self.metadata["settings"]["timezone"]
         self.timezone = self._get_timezone(self.tzinfo)
@@ -364,7 +370,16 @@ class App:
 
         csv_data = self._unpack_subfields(records, field_filters)
 
-        fieldnames = csv_data[0].keys()
+        # fieldnames = csv_data[0].keys()
+        fieldnames = None
+
+        for record in csv_data:
+            fieldnames = record.keys()
+            break
+
+        if not fieldnames or not csv_data:
+            return False, 'No data to write to CSV.'
+
 
         fname = os.path.join(out_dir, f"{file_name}.csv")
 
@@ -372,6 +387,8 @@ class App:
             writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=delimiter)
             writer.writeheader()
             writer.writerows(csv_data)
+            
+        return True, fname
         
     def _assemble_downloads(
         self, identifier: str, field_key: str, label_keys: list, out_dir: str
