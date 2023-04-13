@@ -14,6 +14,7 @@ from .models import TIMEZONES, FIELD_SETTINGS
 
 logger = logging.getLogger(__name__)
 
+
 class App:
     """Knackpy is designed around the `App` class. It provides helpers for querying
     and manipulating Knack application data. You should use the `App` class
@@ -53,9 +54,8 @@ class App:
         metadata: str = None,
         tzinfo: datetime.tzinfo = None,
         max_attempts: int = 5,
-        timeout: int = 30,
+        timeout: int = 300,
     ):
-
         if not api_key:
             warnings.warn(
                 "No API key has been supplied. Only public views will be accessible."
@@ -73,10 +73,20 @@ class App:
             else metadata["application"]
         )
 
-    
         # Sanitize File Name, remove special characters
-        for object in self.metadata["objects"]:
-            object["name"] = "".join(x for x in object["name"] if x.isalnum() or x in ["_", "-"])
+        for obj in self.metadata["objects"]:
+            try:
+                if "name" in obj:
+                    obj["name"] = "".join(
+                        x for x in obj["name"] if x.isalnum() or x in ["_", "-"]
+                    )
+                else:
+                    obj["name"] = "_nonameobj_".join(
+                        x for x in obj["key"] if x.isalnum() or x in ["_", "-"]
+                    )
+            except Exception as e:
+                print("Error sanitizing object name", e)
+                print("For object", obj)
 
         self.slug = self.metadata["account"]["slug"]
         self.tzinfo = tzinfo if tzinfo else self.metadata["settings"]["timezone"]
@@ -92,10 +102,10 @@ class App:
 
     def info(self):
         """Returns a `dict` of basic app information:
-            - Number of objects
-            - Number of scenes
-            - Number of records
-            - Number total file size
+        - Number of objects
+        - Number of scenes
+        - Number of records
+        - Number total file size
         """
         total_obj = len(self.metadata.get("objects"))
         total_scenes = len(self.metadata.get("scenes"))
@@ -198,26 +208,26 @@ class App:
     ):
         """Get records from a knack object or view.
 
-            Note that we accept the request params `record_limit` and `filters` here
-            because the user would presumably want to set these on a per-object/view
-            basis. They are not stored in state. Whereas `max_attempts` and
-            `timeout` are set on App construction and persist in `App` state.
+        Note that we accept the request params `record_limit` and `filters` here
+        because the user would presumably want to set these on a per-object/view
+        basis. They are not stored in state. Whereas `max_attempts` and
+        `timeout` are set on App construction and persist in `App` state.
 
-            Args:
-                identifier (str, optional*): an object or view key or name string that
-                    exists in the app. If None is provided and only one container has
-                    been fetched, will return records from that container.
-                refresh (bool, optional): Force the re-querying of data from Knack
-                    API. Defaults to False.
-                record_limit (int): the maximum number of records to retrieve. If
-                    `None`, will return all records.
-                filters (dict or list, optional): A dict or list of Knack API filters.
-                    See: https://www.knack.com/developer-documentation/#filters.
-                generate (bool, optional): If True, will return a generator which
-                    yields knacky.Record objects instead of return a list of of them.
+        Args:
+            identifier (str, optional*): an object or view key or name string that
+                exists in the app. If None is provided and only one container has
+                been fetched, will return records from that container.
+            refresh (bool, optional): Force the re-querying of data from Knack
+                API. Defaults to False.
+            record_limit (int): the maximum number of records to retrieve. If
+                `None`, will return all records.
+            filters (dict or list, optional): A dict or list of Knack API filters.
+                See: https://www.knack.com/developer-documentation/#filters.
+            generate (bool, optional): If True, will return a generator which
+                yields knacky.Record objects instead of return a list of of them.
 
-            Returns:
-                A `generator` which yields knackpy Record objects.
+        Returns:
+            A `generator` which yields knackpy Record objects.
         """
         if not identifier and len(self.data) == 1:
             identifier = list(self.data.keys())[0]
@@ -312,7 +322,6 @@ class App:
         for record in records:
             record_formatted = {}
             for field in record.values():
-
                 if field.key in field_filters:
                     continue
 
@@ -377,8 +386,7 @@ class App:
             break
 
         if not fieldnames or not csv_data:
-            return False, 'No data to write to CSV.'
-
+            return False, "No data to write to CSV."
 
         fname = os.path.join(out_dir, f"{file_name}.csv")
 
@@ -386,9 +394,9 @@ class App:
             writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=delimiter)
             writer.writeheader()
             writer.writerows(csv_data)
-            
+
         return True, fname
-        
+
     def _assemble_downloads(
         self, identifier: str, field_key: str, label_keys: list, out_dir: str
     ):
@@ -535,7 +543,7 @@ class App:
                 return self.data[obj]
 
     def _update_record_state(self, res, obj, method, record_id=None):
-        """ Keep local data and records in sync with CRUD operations.
+        """Keep local data and records in sync with CRUD operations.
 
         Args:
             res (dict): Knack API response. Either a record `dict` or `{"delete": True}`
@@ -567,7 +575,11 @@ class App:
         return None
 
     def record(
-        self, *, data: dict, method: str, obj: str,
+        self,
+        *,
+        data: dict,
+        method: str,
+        obj: str,
     ):
         """Create, update, or delete a Knack record.
 
