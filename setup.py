@@ -3,7 +3,7 @@ import setuptools
 
 
 def get_env(args):
-    """ If args contain `pypi-dev`, the package name will be `knackpy-dev`. Else the
+    """If args contain `pypi-dev`, the package name will be `knackpy-dev`. Else the
     package name will be Knackpy."""
     try:
         # test if our custom arg is present and delete it so that setuptools doesn't
@@ -46,7 +46,7 @@ def build_config(env, readme="README.md"):
         "packages": ["knackpy"],
         "tests_require": ["pytest", "coverage"],
         "url": "http://https://github.com/SimpleBackups/sb-knackpy",
-        "version": "1.2.5",
+        "version": "1.2.6",
     }
 
 
