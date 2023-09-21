@@ -17,8 +17,7 @@ def _random_pause():
     seconds = random.randrange(3, 10, 1)
     time.sleep(seconds / 10)
 
-
-def _url(*, route: str, slug: str = None) -> str:
+def _url(*, route: str, slug: str = None, custom_url: str = None) -> str:
     """Format the API endpoint URL. This does not appear to be documented anywhere,
     but as discussed [here](https://github.com/cityofaustin/knackpy/pull/36), HIPAA
     accounts use a prefixed subdomain that includes their application's slug. E.g.:
@@ -34,6 +33,9 @@ def _url(*, route: str, slug: str = None) -> str:
     Returns:
         str: [description]
     """
+    if custom_url:
+        return f"{custom_url}{route}"
+    
     return (
         f"https://{slug}-api.knack.com/v1{route}"
         if slug
@@ -203,6 +205,7 @@ def get(
     filters: dict = None,
     max_attempts: int = 5,
     timeout: int = 30,
+    custom_url: str = None,
 ) -> [list, requests.Response]:
     """Get records from a knack object or view. This is the raw stuff with
     incorrect timestamps!
@@ -226,7 +229,7 @@ def get(
         list: Knack records.
     """
     route = _route(obj=obj, scene=scene, view=view)
-    url = _url(slug=slug, route=route)
+    url = _url(slug=slug, route=route, custom_url=custom_url)
     record_limit = record_limit if record_limit else math.inf
     filters = json.dumps(filters) if filters else None
     rows_per_page = (
@@ -244,7 +247,7 @@ def get(
 
 
 def get_metadata(
-    *, app_id: str, slug: str = None, timeout: int = 30, max_attempts: int = 5
+    *, app_id: str, slug: str = None, timeout: int = 30, max_attempts: int = 5, custom_url: str = None
 ) -> dict:
     """Fetch Knack application metadata. You can find your app's metadata at:
     `https://api.knack.com/v1/applications/<app_id:str>`.
@@ -258,7 +261,7 @@ def get_metadata(
         dict: A dictionary of Knack application metadata.
     """
     route = _route(app_id=app_id)
-    url = _url(slug=slug, route=route)
+    url = _url(slug=slug, route=route, custom_url=custom_url)
     return _request(
         method="GET", url=url, headers=None, max_attempts=max_attempts
     ).json()
@@ -291,6 +294,7 @@ def record(
     slug: str = None,
     max_attempts: int = 5,
     timeout: int = 30,
+    custom_url: str = None,
 ):
     """Create, update, or delete a Knack record.
 
@@ -317,7 +321,7 @@ def record(
     headers = _headers(app_id, api_key)
     route = _route(obj=obj, record_id=record_id)
     method = _handle_method(method)
-    url = _url(slug=slug, route=route)
+    url = _url(slug=slug, route=route, custom_url=custom_url)
     return _request(
         method=method,
         url=url,
@@ -340,6 +344,7 @@ def upload(
     slug: str = None,
     max_attempts: int = 5,
     timeout: int = 30,
+    custom_url: str = None,
 ):
     """Upload a file or image to Knack. This is a two-step process:
 
@@ -370,7 +375,7 @@ def upload(
     """
     headers = _headers(app_id, api_key)
     route = _route(app_id=app_id, asset_type=asset_type)
-    url = _url(route=route, slug=slug)
+    url = _url(route=route, slug=slug, custom_url=custom_url)
     method = "create" if not record_id else "update"
 
     with open(path, "rb") as file:

@@ -14,6 +14,7 @@ from .models import TIMEZONES, FIELD_SETTINGS
 
 logger = logging.getLogger(__name__)
 
+
 class App:
     """Knackpy is designed around the `App` class. It provides helpers for querying
     and manipulating Knack application data. You should use the `App` class
@@ -53,9 +54,8 @@ class App:
         metadata: str = None,
         tzinfo: datetime.tzinfo = None,
         max_attempts: int = 5,
-        timeout: int = 30,
+        timeout: int = 300,
     ):
-
         if not api_key:
             warnings.warn(
                 "No API key has been supplied. Only public views will be accessible."
@@ -66,12 +66,28 @@ class App:
         self.timeout = timeout
         self.max_attempts = max_attempts
         self.metadata = (
-            api.get_metadata(app_id=self.app_id, timeout=self.timeout, slug=slug)[
+            api.get_metadata(app_id=self.app_id, timeout=self.timeout, slug=slug, custom_url=self.custom_url)[
                 "application"
             ]
             if not metadata
             else metadata["application"]
         )
+
+        # Sanitize File Name, remove special characters
+        for obj in self.metadata["objects"]:
+            try:
+                if "name" in obj:
+                    obj["name"] = "".join(
+                        x for x in obj["name"] if x.isalnum() or x in ["_", "-"]
+                    )
+                else:
+                    obj["name"] = "_nonameobj_".join(
+                        x for x in obj["key"] if x.isalnum() or x in ["_", "-"]
+                    )
+            except Exception as e:
+                print("Error sanitizing object name", e)
+                print("For object", obj)
+
         self.slug = self.metadata["account"]["slug"]
         self.tzinfo = tzinfo if tzinfo else self.metadata["settings"]["timezone"]
         self.timezone = self._get_timezone(self.tzinfo)
@@ -82,14 +98,14 @@ class App:
         logger.debug(self)
 
     def _get_metadata(self):
-        return api.get_metadata(app_id=self.app_id, timeout=self.timeout)
+        return api.get_metadata(app_id=self.app_id, timeout=self.timeout, custom_url=self.custom_url)
 
     def info(self):
         """Returns a `dict` of basic app information:
-            - Number of objects
-            - Number of scenes
-            - Number of records
-            - Number total file size
+        - Number of objects
+        - Number of scenes
+        - Number of records
+        - Number total file size
         """
         total_obj = len(self.metadata.get("objects"))
         total_scenes = len(self.metadata.get("scenes"))
@@ -148,7 +164,7 @@ class App:
             matches = [
                 tz["iana_name"]
                 for tz in TIMEZONES
-                if tz["common_name"].lower() == tzinfo.lower()
+                if tzinfo.lower() in tz["common_name"].lower()
             ]
             return pytz.timezone(matches[0])
 
@@ -192,26 +208,26 @@ class App:
     ):
         """Get records from a knack object or view.
 
-            Note that we accept the request params `record_limit` and `filters` here
-            because the user would presumably want to set these on a per-object/view
-            basis. They are not stored in state. Whereas `max_attempts` and
-            `timeout` are set on App construction and persist in `App` state.
+        Note that we accept the request params `record_limit` and `filters` here
+        because the user would presumably want to set these on a per-object/view
+        basis. They are not stored in state. Whereas `max_attempts` and
+        `timeout` are set on App construction and persist in `App` state.
 
-            Args:
-                identifier (str, optional*): an object or view key or name string that
-                    exists in the app. If None is provided and only one container has
-                    been fetched, will return records from that container.
-                refresh (bool, optional): Force the re-querying of data from Knack
-                    API. Defaults to False.
-                record_limit (int): the maximum number of records to retrieve. If
-                    `None`, will return all records.
-                filters (dict or list, optional): A dict or list of Knack API filters.
-                    See: https://www.knack.com/developer-documentation/#filters.
-                generate (bool, optional): If True, will return a generator which
-                    yields knacky.Record objects instead of return a list of of them.
+        Args:
+            identifier (str, optional*): an object or view key or name string that
+                exists in the app. If None is provided and only one container has
+                been fetched, will return records from that container.
+            refresh (bool, optional): Force the re-querying of data from Knack
+                API. Defaults to False.
+            record_limit (int): the maximum number of records to retrieve. If
+                `None`, will return all records.
+            filters (dict or list, optional): A dict or list of Knack API filters.
+                See: https://www.knack.com/developer-documentation/#filters.
+            generate (bool, optional): If True, will return a generator which
+                yields knacky.Record objects instead of return a list of of them.
 
-            Returns:
-                A `generator` which yields knackpy Record objects.
+        Returns:
+            A `generator` which yields knackpy Record objects.
         """
         if not identifier and len(self.data) == 1:
             identifier = list(self.data.keys())[0]
@@ -241,6 +257,7 @@ class App:
                 max_attempts=self.max_attempts,
                 timeout=self.timeout,
                 record_limit=record_limit,
+                custom_url=self.custom_url,
             )
 
         self.records[container_key] = self._records(container_key, generate)
@@ -293,7 +310,7 @@ class App:
             and field_def.obj == obj
         ]
 
-    def _unpack_subfields(self, records: list) -> list:
+    def _unpack_subfields(self, records: list, field_filters: list = None) -> list:
         """Unpack subfields and for select field types so that they can be handled as
         individual columns in CSV. See `models.py` for subfield definitions.
 
@@ -306,6 +323,9 @@ class App:
         for record in records:
             record_formatted = {}
             for field in record.values():
+                if field.key in field_filters:
+                    continue
+
                 try:
                     subfields = FIELD_SETTINGS[field.field_def.type]["subfields"]
                 except KeyError:
@@ -329,12 +349,13 @@ class App:
             records_formatted.append(record_formatted)
         return records_formatted
 
-    def to_newcsv(
+    def to_csv(
         self,
         identifier: str,
         *,
         out_dir: str = "_csv",
-        file_name_postfix: str = "",
+        file_name: str = "",
+        field_filters: list = None,
         delimiter=",",
         record_limit: int = None,
         filters: typing.Union[dict, list] = None,
@@ -357,16 +378,25 @@ class App:
 
         records = self.get(identifier, record_limit=record_limit, filters=filters)
 
-        csv_data = self._unpack_subfields(records)
+        csv_data = self._unpack_subfields(records, field_filters)
 
-        fieldnames = csv_data[0].keys()
+        fieldnames = None
 
-        fname = os.path.join(out_dir, f"{identifier}{file_name_postfix}.csv")
+        for record in csv_data:
+            fieldnames = record.keys()
+            break
+
+        if not fieldnames or not csv_data:
+            return False, "No data to write to CSV."
+
+        fname = os.path.join(out_dir, f"{file_name}.csv")
 
         with open(fname, "w") as fout:
             writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=delimiter)
             writer.writeheader()
             writer.writerows(csv_data)
+
+        return True, fname
 
     def _assemble_downloads(
         self, identifier: str, field_key: str, label_keys: list, out_dir: str
@@ -514,7 +544,7 @@ class App:
                 return self.data[obj]
 
     def _update_record_state(self, res, obj, method, record_id=None):
-        """ Keep local data and records in sync with CRUD operations.
+        """Keep local data and records in sync with CRUD operations.
 
         Args:
             res (dict): Knack API response. Either a record `dict` or `{"delete": True}`
@@ -546,7 +576,11 @@ class App:
         return None
 
     def record(
-        self, *, data: dict, method: str, obj: str,
+        self,
+        *,
+        data: dict,
+        method: str,
+        obj: str,
     ):
         """Create, update, or delete a Knack record.
 
@@ -574,6 +608,7 @@ class App:
             slug=self.slug,
             max_attempts=self.max_attempts,
             timeout=self.timeout,
+            custom_url=self.custom_url,
         )
 
         if self.data.get(obj):
@@ -621,7 +656,13 @@ class App:
             slug=self.slug,
             max_attempts=self.max_attempts,
             timeout=self.timeout,
+            custom_url=self.custom_url,
         )
 
-    def hello(self):
-        print("Hello World")
+    def set_custom_url(self, custom_url: str):
+        """Set the custom URL for the app.
+
+        Args:
+            custom_url (str): The custom URL to set.
+        """
+        self.custom_url = custom_url
