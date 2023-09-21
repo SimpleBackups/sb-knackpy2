@@ -66,7 +66,7 @@ class App:
         self.timeout = timeout
         self.max_attempts = max_attempts
         self.metadata = (
-            api.get_metadata(app_id=self.app_id, timeout=self.timeout, slug=slug)[
+            api.get_metadata(app_id=self.app_id, timeout=self.timeout, slug=slug, custom_url=self.custom_url)[
                 "application"
             ]
             if not metadata
@@ -98,7 +98,7 @@ class App:
         logger.debug(self)
 
     def _get_metadata(self):
-        return api.get_metadata(app_id=self.app_id, timeout=self.timeout)
+        return api.get_metadata(app_id=self.app_id, timeout=self.timeout, custom_url=self.custom_url)
 
     def info(self):
         """Returns a `dict` of basic app information:
@@ -257,6 +257,7 @@ class App:
                 max_attempts=self.max_attempts,
                 timeout=self.timeout,
                 record_limit=record_limit,
+                custom_url=self.custom_url,
             )
 
         self.records[container_key] = self._records(container_key, generate)
@@ -607,6 +608,7 @@ class App:
             slug=self.slug,
             max_attempts=self.max_attempts,
             timeout=self.timeout,
+            custom_url=self.custom_url,
         )
 
         if self.data.get(obj):
@@ -654,4 +656,13 @@ class App:
             slug=self.slug,
             max_attempts=self.max_attempts,
             timeout=self.timeout,
+            custom_url=self.custom_url,
         )
+
+    def set_custom_url(self, custom_url: str):
+        """Set the custom URL for the app.
+
+        Args:
+            custom_url (str): The custom URL to set.
+        """
+        self.custom_url = custom_url
