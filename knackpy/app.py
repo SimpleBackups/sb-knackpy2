@@ -4,7 +4,7 @@ import logging
 import os
 import warnings
 import typing
-
+import pandas as pd
 import requests
 import pytz
 
@@ -380,23 +380,39 @@ class App:
 
         records = self.get(identifier, record_limit=record_limit, filters=filters)
 
-        csv_data = self._unpack_subfields(records, field_filters)
+        if not records:
+            logger.warning(f"No records found for {identifier}.")
+            return False, f"No records found for {identifier}."
+        
+        if not file_name:
+            file_name = f"{identifier}.csv"
+        
+        file_path = os.path.join(out_dir, file_name)
 
-        fieldnames = None
+        df = pd.DataFrame(records)
 
-        for record in csv_data:
-            fieldnames = record.keys()
-            break
+        df.to_csv(file_path, index=False, sep=delimiter)
+        logger.info(f"Wrote {len(records)} records to {file_path}")
 
-        if not fieldnames or not csv_data:
-            return False, "No data to write to CSV."
+        return True, file_path
 
-        fname = os.path.join(out_dir, f"{file_name}.csv")
+        # csv_data = self._unpack_subfields(records, field_filters)
 
-        with open(fname, "w") as fout:
-            writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=delimiter)
-            writer.writeheader()
-            writer.writerows(csv_data)
+        # fieldnames = None
+
+        # for record in csv_data:
+        #     fieldnames = record.keys()
+        #     break
+
+        # if not fieldnames or not csv_data:
+        #     return False, "No data to write to CSV."
+
+        # fname = os.path.join(out_dir, f"{file_name}.csv")
+
+        # with open(fname, "w") as fout:
+        #     writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=delimiter)
+        #     writer.writeheader()
+        #     writer.writerows(csv_data)
 
         return True, fname
 
