@@ -55,6 +55,7 @@ class App:
         tzinfo: datetime.tzinfo = None,
         max_attempts: int = 5,
         timeout: int = 300,
+        custom_url: str = None,
     ):
         if not api_key:
             warnings.warn(
@@ -65,6 +66,7 @@ class App:
         self.api_key = api_key
         self.timeout = timeout
         self.max_attempts = max_attempts
+        self.custom_url = custom_url
         self.metadata = (
             api.get_metadata(app_id=self.app_id, timeout=self.timeout, slug=slug, custom_url=self.custom_url)[
                 "application"
