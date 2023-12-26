@@ -39,14 +39,14 @@ def build_config(env, readme="README.md"):
         "description": "A Python API client for interacting with Knack applications - For SimpleBackups",
         "long_description": long_description,
         "long_description_content_type": "text/markdown",
-        "install_requires": ["pytz", "requests"],
+        "install_requires": ["pytz", "requests", "pandas"],
         "keywords": "knack api api-client integration python",
         "license": "Public Domain",
         "name": package_name,
         "packages": ["knackpy"],
-        "tests_require": ["pytest", "coverage"],
+        "tests_require": ["pytest", "coverage", "pandas"],
         "url": "http://https://github.com/SimpleBackups/sb-knackpy",
-        "version": "1.2.74",
+        "version": "1.2.75",
     }
 
 
