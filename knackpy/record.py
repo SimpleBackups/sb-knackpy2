@@ -59,7 +59,7 @@ class Record(MutableMapping):
         # first, try to match by field key
         # yes, there are better ways: https://stackoverflow.com/questions/2361426/get-the-first-item-from-an-iterable-that-matches-a-condition/2361899  # noqa
         match_fields = [
-            field for key, field in self.fields.items() if field.key == client_key
+            field for key, field in self.fields.iteritems() if field.key == client_key
         ]
         if match_fields:
             # there can be only one
@@ -67,7 +67,7 @@ class Record(MutableMapping):
         else:
             # try to match by field name
             match_fields = [
-                field for key, field in self.fields.items() if field.name == client_key
+                field for key, field in self.fields.iteritems() if field.name == client_key
             ]
         if match_fields:
             # there can be only one
@@ -103,7 +103,7 @@ class Record(MutableMapping):
 
     def items(self):
         """Return a list of the Record's Field objects"""
-        return self.fields.items()
+        return self.fields.iteritems()
 
     def keys(self):
         """Return a list (not a view) of the record’s field keys"""
@@ -111,11 +111,11 @@ class Record(MutableMapping):
 
     def values(self):
         """Return a list of the Record's Field objects"""
-        return [value for key, value in self.fields.items()]
+        return [value for key, value in self.fields.iteritems()]
 
     def names(self):
         """Return a list of the record’s field names"""
-        return [field.name for key, field in self.fields.items()]
+        return [field.name for key, field in self.fields.iteritems()]
 
     def _handle_fields(self):
         fields = {}
@@ -166,7 +166,7 @@ class Record(MutableMapping):
         """
         record = {}
 
-        for field_key, field in self.fields.items():
+        for field_key, field in self.fields.iteritems():
             try:
                 # try to see if key is contained by list keys
                 key = field.name if field_key in keys else field_key
@@ -186,12 +186,12 @@ class Record(MutableMapping):
 
     def _replace_empty_strings_and_arrays(self, record):
         return {
-            key: None if val == "" or val == [] else val for key, val in record.items()
+            key: None if val == "" or val == [] else val for key, val in record.iteritems()
         }
 
     def _correct_knack_timestamp(self, record, timezone):
         # see note in knackpy.utils.correct_knack_timestamp
-        for key, val in record.items():
+        for key, val in record.iteritems():
             try:
                 val["unix_timestamp"] = utils.correct_knack_timestamp(
                     val["unix_timestamp"], timezone
