@@ -33,7 +33,7 @@ class Record(MutableMapping):
         self.identifier = identifier
         self.timezone = timezone
         self.raw = self._handle_record()
-        self.fields = self._handle_fields()
+        self.fields = {key:field for key, field in self._handle_fields()}
         self.immutable = False
         self.update(self.fields)
         # we restrict re-assignment of field values after init
@@ -143,9 +143,7 @@ class Record(MutableMapping):
                 knack_formatted_value=knack_formatted_value,
             )
 
-            fields[field.key] = field
-
-        return fields
+            yield field.key, field
 
     def _handle_record(self):
         record = self._replace_empty_strings_and_arrays(self.data)
@@ -185,9 +183,10 @@ class Record(MutableMapping):
         return record
 
     def _replace_empty_strings_and_arrays(self, record):
-        return {
-            key: None if val == "" or val == [] else val for key, val in record.items()
-        }
+        for key, val in record.items():
+            if val == "" or val == []:
+                record[key] = None
+        return record
 
     def _correct_knack_timestamp(self, record, timezone):
         # see note in knackpy.utils.correct_knack_timestamp

@@ -1,10 +1,11 @@
 import csv
 import datetime
+import json
 import logging
 import os
 import warnings
 import typing
-import pandas as pd
+# import pandas as pd
 import requests
 import pytz
 
@@ -387,46 +388,6 @@ class App:
             os.makedirs(out_dir)
         records = self.get(identifier, record_limit=record_limit, filters=filters)
 
-        csv_data = self._unpack_subfields(records, field_filters)
-
-        fieldnames = None
-
-        for record in csv_data:
-            fieldnames = record.keys()
-            break
-
-        if not fieldnames or not csv_data:
-            return False, "No data to write to CSV."
-
-        fname = os.path.join(out_dir, f"{file_name}.csv")
-        
-        df = pd.DataFrame(csv_data)
-        df.to_csv(fname, index=False, sep=delimiter, header=fieldnames)
-        
-        return True, fname
-            
-
-        # records = self.get(identifier, record_limit=record_limit, filters=filters)
-
-        # if not records:
-        #     logger.warning(f"No records found for {identifier}.")
-        #     return False, f"No records found for {identifier}."
-        
-        # if not file_name:
-        #     file_name = f"{identifier}.csv"
-        
-        # if not file_name.endswith(".csv"):
-        #     file_name += ".csv"
-        
-        # file_path = os.path.join(out_dir, file_name)
-
-        # df = pd.DataFrame(records)
-
-        # df.to_csv(file_path, index=False, sep=delimiter, compression="gzip", header=False)
-        # logger.info(f"Wrote {len(records)} records to {file_path}")
-
-        # return True, file_path
-
         # csv_data = self._unpack_subfields(records, field_filters)
 
         # fieldnames = None
@@ -439,13 +400,36 @@ class App:
         #     return False, "No data to write to CSV."
 
         # fname = os.path.join(out_dir, f"{file_name}.csv")
-
-        # with open(fname, "w") as fout:
-        #     writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=delimiter)
-        #     writer.writeheader()
-        #     writer.writerows(csv_data)
-
+        
+        # df = pd.DataFrame(csv_data)
+        # df.to_csv(fname, index=False, sep=delimiter, header=fieldnames)
+        
         # return True, fname
+    
+
+        csv_data = self._unpack_subfields(records, field_filters)
+
+        fieldnames = None
+
+        for record in csv_data:
+            fieldnames = record.keys()
+            break
+
+        if not fieldnames or not csv_data:
+            return False, "No data to write to CSV."
+
+        csv_fname = os.path.join(out_dir, f"{file_name}.csv")
+        json_fname = os.path.join(out_dir, f"{file_name}.json")
+
+        with open(csv_fname, "w") as fout:
+            writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=delimiter)
+            writer.writeheader()
+            writer.writerows(csv_data)
+        # with open(json_fname, "w") as fout:
+        #     json.dump(csv_data, fout)
+            
+
+        return True, csv_fname
 
     def _assemble_downloads(
         self, identifier: str, field_key: str, label_keys: list, out_dir: str

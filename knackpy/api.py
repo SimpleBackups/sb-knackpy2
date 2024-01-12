@@ -7,7 +7,7 @@ import random
 import time
 import typing
 import threading
-
+import orjson
 import requests
 import concurrent.futures
 
@@ -124,9 +124,9 @@ def _request(
         logger.debug(
             f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
         )
-        #print(
-        #     f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
-        # )
+        print(
+            f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
+        )
 
         try:
             res = session.send(prepped, timeout=timeout)
@@ -141,7 +141,7 @@ def _request(
 
             if attempts < max_attempts:
                 logger.debug(f"Error on attempt #{attempts}: {e.__repr__()}")
-                #print(f"Error on attempt #{attempts}: {e.__repr__()}")
+                print(f"Error on attempt #{attempts}: {e.__repr__()}")
                 attempts += 1
                 _random_pause()
                 continue
@@ -225,21 +225,18 @@ def _get_page(
         max_attempts=max_attempts,
         params=params,
     )
-
-    fetched_records = res.json()["records"]
+    data = res.json()
+    fetched_records = data["records"]
+    
     if len(fetched_records) == 0:
         """Failsafe to handle edge case in which Knack returns fewer records than expected from 
         total_records. Consider `total_records` an estimate"""
         return
-
-    records = fetched_records
-    # fname = f"knackpy_{page}.json"
-    # with open(os.path.join('./tmp', fname), "w") as file:
-    #     file.write(json.dumps(records))
-        
-    total_records = res.json()["total_records"]
-    current_page = res.json()["current_page"]
-    return records, total_records, current_page
+    
+    total_records = data["total_records"]
+    current_page = data["current_page"]
+    del res, data
+    return fetched_records, total_records, current_page
 
 def get_total_pages_count_and_total_records(*, app_id, url, headers, timeout, max_attempts, rows_per_page, filters, params):
     res = _request(
@@ -250,11 +247,11 @@ def get_total_pages_count_and_total_records(*, app_id, url, headers, timeout, ma
         max_attempts=max_attempts,
         params=params,
     )
-    
     total_records = res.json()["total_records"]
     total_pages = math.ceil(total_records / rows_per_page)
-    # print (f"Total records: {total_records}")
-    # print (f"Total pages: {total_pages}")
+    print (f"Total records: {total_records}")
+    print (f"Total pages: {total_pages}")
+    del res
     return total_pages, total_records
 
 def _get_paginated_records_threaded(
@@ -277,7 +274,7 @@ def _get_paginated_records_threaded(
     finished_pages = []
     result_records_unsorted = {} # {page: [records]}
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(8,total_pages)) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(16,total_pages)) as executor:
         futures = []
         while _continue(total_records, len(records), record_limit):
             futures.append(executor.submit(_get_page, url=url, headers=headers, timeout=timeout, max_attempts=max_attempts, page=page, rows_per_page=rows_per_page, filters=filters))
@@ -294,7 +291,7 @@ def _get_paginated_records_threaded(
                 finished_pages.append(current_page)
                 result_records_unsorted[current_page] = data[0]
                 percentage_finished = len(finished_pages) / total_pages * 100
-                #print(f"Finished page {current_page} ({total_pages}/{len(finished_pages)}) ({len(records)}/{total_records}) {percentage_finished}%")
+                print(f"Finished page {current_page} ({total_pages}/{len(finished_pages)}) ({len(records)}/{total_records}) {percentage_finished}%")
             else:
                 break
             
@@ -354,7 +351,7 @@ def get(
         record_limit=record_limit,
         rows_per_page=rows_per_page,
         filters=filters,
-        timeout=30,
+        timeout=6,
     )
 
 

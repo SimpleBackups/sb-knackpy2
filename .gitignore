@@ -144,3 +144,5 @@ notes.md
 pytest.ini
 _csv/
 test.py
+memray-*
+dump/*
