@@ -354,7 +354,7 @@ def get(
         record_limit=record_limit,
         rows_per_page=rows_per_page,
         filters=filters,
-        timeout=15
+        timeout=30,
     )
 
 
