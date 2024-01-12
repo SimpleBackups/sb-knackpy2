@@ -235,6 +235,8 @@ class App:
             identifier = list(self.data.keys())[0]
         elif not identifier:
             raise TypeError("Missing 1 required argument: identifier")
+    
+        print("Started fetching records for identifier: " + identifier)
 
         container = self._find_container(identifier)
 
@@ -245,7 +247,10 @@ class App:
         if self.records.get(container_key) and not refresh:
             # if the data has already been retrieved we do not fetch it again or convert
             # the data into knackpy.record.Record's again, unless refresh.
+            print("Data already exists for container key: " + container_key)
             return self.records[container_key]
+    
+        print("Fetching data started for container key: " + container_key)
 
         if not self.data.get(container_key) or refresh:
             self.data[container_key] = api.get(
@@ -263,6 +268,8 @@ class App:
             )
 
         self.records[container_key] = self._records(container_key, generate)
+        
+        print("Finished downloading records")
         return self.records[container_key]
 
     def _records(self, container_key, generate=False):
@@ -321,7 +328,7 @@ class App:
 
         Receives a list of `Record` objects and returns a list of dicts."""
         records_formatted = []
-
+        print("Started formatting records")
         for record in records:
             record_formatted = {}
             for field in record.values():
@@ -349,6 +356,8 @@ class App:
                     field_dict = {field.name: field.formatted}
                 record_formatted.update(field_dict)
             records_formatted.append(record_formatted)
+        
+        print("Finished formatting records")
         return records_formatted
 
     def to_csv(

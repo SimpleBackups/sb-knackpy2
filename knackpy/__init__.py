@@ -4,6 +4,6 @@ from .api import get, get_metadata, record  # noqa: F401
 # Set default logging handler to avoid "No handler found" warnings.
 # https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library
 import logging
-from logging import NullHandler
+from logging import NullHandler, FileHandler
 
-logging.getLogger(__name__).addHandler(NullHandler())
+logging.getLogger(__name__).addHandler(FileHandler('knackpy.log'))
