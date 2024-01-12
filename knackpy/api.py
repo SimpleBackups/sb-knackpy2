@@ -124,9 +124,9 @@ def _request(
         logger.debug(
             f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
         )
-        print(
-            f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
-        )
+        #print(
+        #     f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
+        # )
 
         try:
             res = session.send(prepped, timeout=timeout)
@@ -141,7 +141,7 @@ def _request(
 
             if attempts < max_attempts:
                 logger.debug(f"Error on attempt #{attempts}: {e.__repr__()}")
-                print(f"Error on attempt #{attempts}: {e.__repr__()}")
+                #print(f"Error on attempt #{attempts}: {e.__repr__()}")
                 attempts += 1
                 _random_pause()
                 continue
@@ -253,8 +253,8 @@ def get_total_pages_count_and_total_records(*, app_id, url, headers, timeout, ma
     
     total_records = res.json()["total_records"]
     total_pages = math.ceil(total_records / rows_per_page)
-    print (f"Total records: {total_records}")
-    print (f"Total pages: {total_pages}")
+    # print (f"Total records: {total_records}")
+    # print (f"Total pages: {total_pages}")
     return total_pages, total_records
 
 def _get_paginated_records_threaded(
@@ -294,7 +294,7 @@ def _get_paginated_records_threaded(
                 finished_pages.append(current_page)
                 result_records_unsorted[current_page] = data[0]
                 percentage_finished = len(finished_pages) / total_pages * 100
-                print(f"Finished page {current_page} ({total_pages}/{len(finished_pages)}) ({len(records)}/{total_records}) {percentage_finished}%")
+                #print(f"Finished page {current_page} ({total_pages}/{len(finished_pages)}) ({len(records)}/{total_records}) {percentage_finished}%")
             else:
                 break
             
@@ -354,7 +354,7 @@ def get(
         record_limit=record_limit,
         rows_per_page=rows_per_page,
         filters=filters,
-        timeout=8
+        timeout=15
     )
 
 

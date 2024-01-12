@@ -6,4 +6,4 @@ from .api import get, get_metadata, record  # noqa: F401
 import logging
 from logging import NullHandler, FileHandler
 
-logging.getLogger(__name__).addHandler(FileHandler('knackpy.log'))
+logging.getLogger(__name__).addHandler(NullHandler())
