@@ -1,21 +1,26 @@
 from _io import BufferedReader
 import json
+import os
 import logging
 import math
 import random
 import time
 import typing
+import threading
 
 import requests
+import concurrent.futures
 
 from .models import MAX_ROWS_PER_PAGE
+
+semophore = threading.Semaphore(4)
 
 logger = logging.getLogger(__name__)
 
 def _random_pause():
     """sleep for at least .333 seconds"""
-    seconds = random.randrange(3, 10, 1)
-    time.sleep(seconds / 10)
+    # seconds = random.randrange(3, 10, 1)
+    # time.sleep( seconds / 10)
 
 def _url(*, route: str, slug: str = None, custom_url: str = None) -> str:
     """Format the API endpoint URL. This does not appear to be documented anywhere,
@@ -119,6 +124,9 @@ def _request(
         logger.debug(
             f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
         )
+        print(
+            f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
+        )
 
         try:
             res = session.send(prepped, timeout=timeout)
@@ -133,6 +141,7 @@ def _request(
 
             if attempts < max_attempts:
                 logger.debug(f"Error on attempt #{attempts}: {e.__repr__()}")
+                print(f"Error on attempt #{attempts}: {e.__repr__()}")
                 attempts += 1
                 _random_pause()
                 continue
@@ -144,7 +153,7 @@ def _request(
 
 def _continue(total_records: int, current_record_count: int, record_limit: int) -> bool:
     if total_records is None:
-        # this case only happens on the *first* API request
+        # this case only happens on the *first* API request or 
         return True
     elif current_record_count < record_limit and total_records > current_record_count:
         return True
@@ -188,10 +197,107 @@ def _get_paginated_records(
         records += fetched_records
         page += 1
         total_records = res.json()["total_records"]
+        fname = f"knackpy_{page}.json"
+        # with open(os.path.join('./tmp', fname), "w") as file:
+        #     total_records = res.json()["total_records"]
+            
 
     # lazily shaving off any remainder to keep the client happy
     return records[0:record_limit] if record_limit < math.inf else records
 
+def _get_page(
+    *,
+    url,
+    headers,
+    timeout,
+    max_attempts,
+    page,
+    rows_per_page,
+    filters
+):
+    params = {"page": page, "rows_per_page": rows_per_page, "filters": filters}
+    logger.debug(f"Getting {rows_per_page} records from page {page} from {url}")
+    res = _request(
+        method="GET",
+        url=url,
+        headers=headers,
+        timeout=timeout,
+        max_attempts=max_attempts,
+        params=params,
+    )
+
+    fetched_records = res.json()["records"]
+    if len(fetched_records) == 0:
+        """Failsafe to handle edge case in which Knack returns fewer records than expected from 
+        total_records. Consider `total_records` an estimate"""
+        return
+
+    records = fetched_records
+    # fname = f"knackpy_{page}.json"
+    # with open(os.path.join('./tmp', fname), "w") as file:
+    #     file.write(json.dumps(records))
+        
+    total_records = res.json()["total_records"]
+    current_page = res.json()["current_page"]
+    return records, total_records, current_page
+
+def get_total_pages_count_and_total_records(*, app_id, url, headers, timeout, max_attempts, rows_per_page, filters, params):
+    res = _request(
+        method="GET",
+        url=url,
+        headers=headers,
+        timeout=timeout,
+        max_attempts=max_attempts,
+        params=params,
+    )
+    
+    total_records = res.json()["total_records"]
+    total_pages = math.ceil(total_records / rows_per_page)
+    print (f"Total records: {total_records}")
+    print (f"Total pages: {total_pages}")
+    return total_pages, total_records
+
+def _get_paginated_records_threaded(
+    *,
+    app_id: str,
+    url: str,
+    max_attempts: int,
+    record_limit: int,
+    rows_per_page: int,
+    api_key: str = None,
+    timeout: int = None,
+    filters: typing.Union[dict, list] = None,
+) -> list:
+    headers = _headers(app_id, api_key)
+    records = []
+    total_records = None
+    page = 1
+    total_pages, total_records = get_total_pages_count_and_total_records(app_id=app_id, url=url, headers=headers, timeout=timeout, max_attempts=max_attempts, rows_per_page=rows_per_page, filters=filters, params={"page": page, "rows_per_page": rows_per_page, "filters": filters})
+    # pages = [ i for i in range(1, total_pages+1)]
+    
+    
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(12,total_pages)) as executor:
+        futures = []
+        while _continue(total_records, len(records), record_limit):
+            futures.append(executor.submit(_get_page, url=url, headers=headers, timeout=timeout, max_attempts=max_attempts, page=page, rows_per_page=rows_per_page, filters=filters))
+            if len(futures) == total_pages:
+                break
+            page += 1
+        
+        for future in concurrent.futures.as_completed(futures):
+            data = future.result()
+            if data:
+                records += data[0]
+                total_records = data[1]
+                current_page = data[2]
+                print(f"Finished page {current_page}")
+            else:
+                break
+        
+        
+    # lazily shaving off any remainder to keep the client happy
+    return records[0:record_limit] if record_limit < math.inf else records
 
 def get(
     *,
@@ -235,7 +341,7 @@ def get(
     rows_per_page = (
         MAX_ROWS_PER_PAGE if record_limit >= MAX_ROWS_PER_PAGE else record_limit
     )
-    return _get_paginated_records(
+    return _get_paginated_records_threaded(
         app_id=app_id,
         api_key=api_key,
         url=url,
