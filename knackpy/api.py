@@ -277,7 +277,7 @@ def _get_paginated_records_threaded(
     finished_pages = []
     result_records_unsorted = {} # {page: [records]}
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(24,total_pages)) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(8,total_pages)) as executor:
         futures = []
         while _continue(total_records, len(records), record_limit):
             futures.append(executor.submit(_get_page, url=url, headers=headers, timeout=timeout, max_attempts=max_attempts, page=page, rows_per_page=rows_per_page, filters=filters))
