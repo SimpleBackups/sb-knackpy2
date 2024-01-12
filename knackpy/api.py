@@ -183,7 +183,7 @@ def _get_paginated_records(
             method="GET",
             url=url,
             headers=headers,
-            timeout=timeout,
+            timeout=8,
             max_attempts=max_attempts,
             params=params,
         )
@@ -274,28 +274,33 @@ def _get_paginated_records_threaded(
     page = 1
     total_pages, total_records = get_total_pages_count_and_total_records(app_id=app_id, url=url, headers=headers, timeout=timeout, max_attempts=max_attempts, rows_per_page=rows_per_page, filters=filters, params={"page": page, "rows_per_page": rows_per_page, "filters": filters})
     # pages = [ i for i in range(1, total_pages+1)]
+    finished_pages = []
+    result_records_unsorted = {} # {page: [records]}
     
-    
-    
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(12,total_pages)) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(24,total_pages)) as executor:
         futures = []
         while _continue(total_records, len(records), record_limit):
             futures.append(executor.submit(_get_page, url=url, headers=headers, timeout=timeout, max_attempts=max_attempts, page=page, rows_per_page=rows_per_page, filters=filters))
-            if len(futures) == total_pages:
+            if len(futures) >= total_pages:
                 break
             page += 1
         
         for future in concurrent.futures.as_completed(futures):
             data = future.result()
             if data:
-                records += data[0]
+                # records += data[0]
                 total_records = data[1]
                 current_page = data[2]
-                print(f"Finished page {current_page}")
+                finished_pages.append(current_page)
+                result_records_unsorted[current_page] = data[0]
+                percentage_finished = len(finished_pages) / total_pages * 100
+                print(f"Finished page {current_page} ({total_pages}/{len(finished_pages)}) ({len(records)}/{total_records}) {percentage_finished}%")
             else:
                 break
-        
-        
+            
+    # sort records
+    for page in range(1, total_pages+1):
+        records += result_records_unsorted[page]
     # lazily shaving off any remainder to keep the client happy
     return records[0:record_limit] if record_limit < math.inf else records
 
@@ -349,6 +354,7 @@ def get(
         record_limit=record_limit,
         rows_per_page=rows_per_page,
         filters=filters,
+        timeout=8
     )
 
 
