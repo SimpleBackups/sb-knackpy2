@@ -208,7 +208,7 @@ class App:
             record_limit: int = None,
             filters: typing.Union[dict, list] = None,
             generate=False,
-    ) -> list:
+    ):
         """Get records from a knack object or view.
 
         Note that we accept the request params `record_limit` and `filters` here
@@ -274,47 +274,28 @@ class App:
         return self.records[container_key]
     
     
-    def _write(
-        self,
-        future: concurrent.futures.Future,
-        out_dir: str,
-        file_name: str,
-        field_filters: list[str],
-        page_number: int,
-        *,
-        identifier:str = ":_backup",
-        generate=False,
-    ):
-
-        fetched_records, _b, current_page = future.result()
-        self.data[identifier] = fetched_records
-        self.records[identifier] = self._records(identifier, generate)
+    
+    def _write_csv(self, future: concurrent.futures.Future, out_dir: str, file_name: str, field_filters: list, page_number: int):
+        fetched_records, total_records, current_page = future.result()
+        csv_data = self._unpack_subfields(fetched_records, field_filters)
         
-        csv_data = self._unpack_subfields(self.records[identifier], field_filters)
-
         fieldnames = None
-
+        
         for record in csv_data:
             fieldnames = record.keys()
             break
-
+        
         if not fieldnames or not csv_data:
-            print (f"No data to write to CSV for page {current_page}")
+            return False, "No data to write to CSV."
         
-        json_file_path = os.path.join(out_dir, f"{file_name}_{current_page}.json")
-        csv_file_path = os.path.join(out_dir, f"{file_name}_{current_page}.csv")
+        fname = os.path.join(out_dir, f"{file_name}_{page_number}.csv")
         
-        with open(json_file_path, "w") as fout:
-            json.dump(csv_data, fout)
-            fout.close()
-            
-        with open(csv_file_path, "w") as fout:
-            writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=",")
+        with open(fname, "w") as fout:
+            writer = csv.DictWriter(fout, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(csv_data)
-            fout.close()
             
-        print (f"Finished writing page {current_page} to {file_name}")
+        print (f"Finished writing page {page_number} to {fname}")
         
 
     def backup(
@@ -344,8 +325,7 @@ class App:
             record_limit=record_limit,
             custom_url=self.custom_url,
         ):
-            # print (f"Started writing page {page_number} to {file_name}")
-            future.add_done_callback(lambda f: self._write(f, out_dir, file_name, field_filters, page_number))
+            future.add_done_callback(lambda f: self._write_csv(f, out_dir, file_name, field_filters, page_number))
 
 
 
@@ -537,6 +517,24 @@ class App:
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
         records = self.get(identifier, record_limit=record_limit, filters=filters)
+
+        # csv_data = self._unpack_subfields(records, field_filters)
+
+        # fieldnames = None
+
+        # for record in csv_data:
+        #     fieldnames = record.keys()
+        #     break
+
+        # if not fieldnames or not csv_data:
+        #     return False, "No data to write to CSV."
+
+        # fname = os.path.join(out_dir, f"{file_name}.csv")
+
+        # df = pd.DataFrame(csv_data)
+        # df.to_csv(fname, index=False, sep=delimiter, header=fieldnames)
+
+        # return True, fname
 
         csv_data = self._unpack_subfields(records, field_filters)
 
