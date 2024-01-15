@@ -208,7 +208,7 @@ class App:
             record_limit: int = None,
             filters: typing.Union[dict, list] = None,
             generate=False,
-    ) -> list:
+    ):
         """Get records from a knack object or view.
 
         Note that we accept the request params `record_limit` and `filters` here
@@ -274,78 +274,45 @@ class App:
         return self.records[container_key]
     
     
-    def _write(
-        self,
-        identifier:str,
-        *,
-        out_dir: str,
-        file_name: str,
-        field_filters: list[str] = None,
-        delimiter=",",
-        record_limit: int = None,
-        filters: typing.Union[dict, list] = None,
-        future: concurrent.futures.Future,
-    ):
-        fetched_records, _b, current_page = future.result()
+    
+    def _write_csv(self, future: concurrent.futures.Future, out_dir: str, file_name: str, field_filters: list, page_number: int):
+        fetched_records, total_records, current_page = future.result()
+        csv_data = self._unpack_subfields(fetched_records, field_filters)
         
-        if not identifier and len(self.data) == 1:
-            identifier = list(self.data.keys())[0]
-        elif not identifier:
-            raise TypeError("Missing 1 required argument: identifier")
-
-        container = self._find_container(identifier)
-        
-        container_key = container.obj or container.view
-        
-        if not self.data.get(container_key):
-            self.data[container_key] = fetched_records
-            
-        self.records[container_key] = self._records(container_key)
-        
-        records = self.records[container_key]
-        
-        csv_data = self._unpack_subfields(records, field_filters)
-
         fieldnames = None
-
+        
         for record in csv_data:
             fieldnames = record.keys()
             break
-
+        
         if not fieldnames or not csv_data:
-            print (f"No data to write to CSV for page {current_page}")
             return False, "No data to write to CSV."
         
-        # json_file_path = os.path.join(out_dir, f"{file_name}_{current_page}.json")
-        csv_file_path = os.path.join(out_dir, f"{file_name}_{current_page}.csv")
+        fname = os.path.join(out_dir, f"{file_name}_{page_number}.csv")
         
-        # with open(json_file_path, "w") as fout:
-        #     json.dump(csv_data, fout)
-        #     fout.close()
-            
-        with open(csv_file_path, "w") as fout:
-            writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=",")
+        with open(fname, "w") as fout:
+            writer = csv.DictWriter(fout, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(csv_data)
             
-        print (f"Finished writing page {current_page} to {file_name}")
+        print (f"Finished writing page {page_number} to {fname}")
         
 
     def backup(
             self,
-            identifier: str,
-            *,
-            out_dir: str = "_csv",
-            file_name: str = "",
-            field_filters: list = None,
-            delimiter=",",
+            identifier: str = None,
+            refresh: bool = False,
             record_limit: int = None,
             filters: typing.Union[dict, list] = None,
+            generate=False,
+            file_name: str = None,
+            out_dir: str = "_csv",
+            field_filters: list = None,
     ):
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 
-        for _page_number, future in api.backup(
+        for page_number, future in api.backup(
             app_id=self.app_id,
             api_key=self.api_key,
             obj=identifier,
@@ -358,8 +325,7 @@ class App:
             record_limit=record_limit,
             custom_url=self.custom_url,
         ):
-            # print (f"Started writing page {page_number} to {file_name}")
-            future.add_done_callback(lambda f: self._write(future=f, out_dir=out_dir, file_name=file_name, field_filters=field_filters,delimiter=delimiter,filters=filters,identifier=identifier))
+            future.add_done_callback(lambda f: self._write_csv(f, out_dir, file_name, field_filters, page_number))
 
 
 
@@ -551,6 +517,24 @@ class App:
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
         records = self.get(identifier, record_limit=record_limit, filters=filters)
+
+        # csv_data = self._unpack_subfields(records, field_filters)
+
+        # fieldnames = None
+
+        # for record in csv_data:
+        #     fieldnames = record.keys()
+        #     break
+
+        # if not fieldnames or not csv_data:
+        #     return False, "No data to write to CSV."
+
+        # fname = os.path.join(out_dir, f"{file_name}.csv")
+
+        # df = pd.DataFrame(csv_data)
+        # df.to_csv(fname, index=False, sep=delimiter, header=fieldnames)
+
+        # return True, fname
 
         csv_data = self._unpack_subfields(records, field_filters)
 

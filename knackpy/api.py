@@ -1,26 +1,26 @@
-from _io import BufferedReader
+import concurrent.futures
+import gc
 import json
-import os
 import logging
 import math
-import random
-import time
+import os
 import typing
-import threading
+import csv
+from typing import Generator
+from _io import BufferedReader
 
 import requests
-import concurrent.futures
 
 from .models import MAX_ROWS_PER_PAGE
 
-semophore = threading.Semaphore(4)
-
 logger = logging.getLogger(__name__)
+
 
 def _random_pause():
     """sleep for at least .333 seconds"""
     # seconds = random.randrange(3, 10, 1)
     # time.sleep( seconds / 10)
+
 
 def _url(*, route: str, slug: str = None, custom_url: str = None) -> str:
     """Format the API endpoint URL. This does not appear to be documented anywhere,
@@ -40,7 +40,7 @@ def _url(*, route: str, slug: str = None, custom_url: str = None) -> str:
     """
     if custom_url:
         return f"{custom_url}{route}"
-    
+
     return (
         f"https://{slug}-api.knack.com/v1{route}"
         if slug
@@ -49,13 +49,13 @@ def _url(*, route: str, slug: str = None, custom_url: str = None) -> str:
 
 
 def _route(
-    *,
-    obj: str = None,
-    scene: str = None,
-    view: str = None,
-    record_id: str = "",
-    app_id: str = None,
-    asset_type: str = None,
+        *,
+        obj: str = None,
+        scene: str = None,
+        view: str = None,
+        record_id: str = "",
+        app_id: str = None,
+        asset_type: str = None,
 ) -> str:
     """Construct a Knack API route. Returns routes for:
         - metadata
@@ -102,16 +102,17 @@ def _headers(app_id: str, api_key: str):
 
 
 def _request(
-    *,
-    method: str,
-    url: str,
-    headers: dict,
-    timeout: int = 30,
-    max_attempts: int = 5,
-    params: dict = None,
-    data: dict = None,
-    files: BufferedReader = None,
+        *,
+        method: str,
+        url: str,
+        headers: dict,
+        timeout: int = 30,
+        max_attempts: int = 5,
+        params: dict = None,
+        data: dict = None,
+        files: BufferedReader = None,
 ) -> requests.Response:
+    res: requests.Response = requests.Response()
     session = requests.Session()
     req = requests.Request(
         method, url, headers=headers, params=params, json=data, files=files
@@ -124,7 +125,7 @@ def _request(
         logger.debug(
             f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
         )
-        #print(
+        # print(
         #     f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
         # )
 
@@ -134,14 +135,14 @@ def _request(
 
         except (requests.exceptions.Timeout, requests.exceptions.HTTPError) as e:
             """5xx errors (a recurring problem with the Knack API) and Timeouts
-            (both  ConnectTimeout and ReadTimeout) are suppresed based on
+            (both  ConnectTimeout and ReadTimeout) are suppressed based on
             max_attempts. Any other error is raised"""
             if e.response and e.response.status_code < 500:
                 raise e
 
             if attempts < max_attempts:
                 logger.debug(f"Error on attempt #{attempts}: {e.__repr__()}")
-                #print(f"Error on attempt #{attempts}: {e.__repr__()}")
+                # print(f"Error on attempt #{attempts}: {e.__repr__()}")
                 attempts += 1
                 _random_pause()
                 continue
@@ -161,15 +162,14 @@ def _continue(total_records: int, current_record_count: int, record_limit: int) 
 
 
 def _get_paginated_records(
-    *,
-    app_id: str,
-    url: str,
-    max_attempts: int,
-    record_limit: int,
-    rows_per_page: int,
-    api_key: str = None,
-    timeout: int = None,
-    filters: typing.Union[dict, list] = None,
+        *,
+        app_id: str,
+        url: str,
+        max_attempts: int,
+        record_limit: int,
+        rows_per_page: int,
+        api_key: str = None,
+        filters: typing.Union[dict, list] = None,
 ) -> list:
     headers = _headers(app_id, api_key)
     records = []
@@ -188,7 +188,7 @@ def _get_paginated_records(
             params=params,
         )
 
-        fetched_records = res.json()["records"]        
+        fetched_records = res.json()["records"]
         if len(fetched_records) == 0:
             """Failsafe to handle edge case in which Knack returns fewer records than expected from 
             total_records. Consider `total_records` an estimate"""
@@ -197,23 +197,20 @@ def _get_paginated_records(
         records += fetched_records
         page += 1
         total_records = res.json()["total_records"]
-        fname = f"knackpy_{page}.json"
-        # with open(os.path.join('./tmp', fname), "w") as file:
-        #     total_records = res.json()["total_records"]
-            
 
     # lazily shaving off any remainder to keep the client happy
     return records[0:record_limit] if record_limit < math.inf else records
 
+
 def _get_page(
-    *,
-    url,
-    headers,
-    timeout,
-    max_attempts,
-    page,
-    rows_per_page,
-    filters
+        *,
+        url,
+        headers,
+        timeout,
+        max_attempts,
+        page,
+        rows_per_page,
+        filters
 ):
     params = {"page": page, "rows_per_page": rows_per_page, "filters": filters}
     logger.debug(f"Getting {rows_per_page} records from page {page} from {url}")
@@ -225,23 +222,25 @@ def _get_page(
         max_attempts=max_attempts,
         params=params,
     )
+    data = res.json()
+    fetched_records = data["records"]
 
-    fetched_records = res.json()["records"]
     if len(fetched_records) == 0:
         """Failsafe to handle edge case in which Knack returns fewer records than expected from 
         total_records. Consider `total_records` an estimate"""
         return
 
-    records = fetched_records
-    # fname = f"knackpy_{page}.json"
-    # with open(os.path.join('./tmp', fname), "w") as file:
-    #     file.write(json.dumps(records))
-        
-    total_records = res.json()["total_records"]
-    current_page = res.json()["current_page"]
-    return records, total_records, current_page
+    total_records = data["total_records"]
+    current_page = data["current_page"]
+    res = None
+    data = None
+    del res
+    del data
+    gc.collect()
+    return fetched_records, total_records, current_page
 
-def get_total_pages_count_and_total_records(*, app_id, url, headers, timeout, max_attempts, rows_per_page, filters, params):
+
+def get_total_pages_count_and_total_records(*, url, headers, timeout, max_attempts, rows_per_page, params):
     res = _request(
         method="GET",
         url=url,
@@ -250,41 +249,52 @@ def get_total_pages_count_and_total_records(*, app_id, url, headers, timeout, ma
         max_attempts=max_attempts,
         params=params,
     )
-    
     total_records = res.json()["total_records"]
     total_pages = math.ceil(total_records / rows_per_page)
-    # print (f"Total records: {total_records}")
-    # print (f"Total pages: {total_pages}")
+    # print(f"Total records: {total_records}")
+    # print(f"Total pages: {total_pages}")
+    res = None
+    del res
+    gc.collect()
     return total_pages, total_records
 
+
 def _get_paginated_records_threaded(
-    *,
-    app_id: str,
-    url: str,
-    max_attempts: int,
-    record_limit: int,
-    rows_per_page: int,
-    api_key: str = None,
-    timeout: int = None,
-    filters: typing.Union[dict, list] = None,
+        *,
+        app_id: str,
+        url: str,
+        max_attempts: int,
+        record_limit: int,
+        rows_per_page: int,
+        api_key: str = None,
+        timeout: int = None,
+        filters: typing.Union[dict, list] = None,
 ) -> list:
-    headers = _headers(app_id, api_key)
     records = []
     total_records = None
     page = 1
-    total_pages, total_records = get_total_pages_count_and_total_records(app_id=app_id, url=url, headers=headers, timeout=timeout, max_attempts=max_attempts, rows_per_page=rows_per_page, filters=filters, params={"page": page, "rows_per_page": rows_per_page, "filters": filters})
+    total_pages, total_records = get_total_pages_count_and_total_records(url=url,
+                                                                         headers=_headers(app_id, api_key),
+                                                                         timeout=timeout, max_attempts=max_attempts,
+                                                                         rows_per_page=rows_per_page,
+                                                                         params={"page": page,
+                                                                                 "rows_per_page": rows_per_page,
+                                                                                 "filters": filters})
     # pages = [ i for i in range(1, total_pages+1)]
     finished_pages = []
-    result_records_unsorted = {} # {page: [records]}
-    
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(8,total_pages)) as executor:
+    result_records_unsorted = {}  # {page: [records]}
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, total_pages)) as executor:
         futures = []
         while _continue(total_records, len(records), record_limit):
-            futures.append(executor.submit(_get_page, url=url, headers=headers, timeout=timeout, max_attempts=max_attempts, page=page, rows_per_page=rows_per_page, filters=filters))
-            if len(futures) >= total_pages:
+            futures.append(
+                executor.submit(_get_page, url=url, headers=_headers(app_id, api_key), timeout=timeout,
+                                max_attempts=max_attempts,
+                                page=page, rows_per_page=rows_per_page, filters=filters))
+            if page >= total_pages:
                 break
             page += 1
-        
+
         for future in concurrent.futures.as_completed(futures):
             data = future.result()
             if data:
@@ -294,29 +304,179 @@ def _get_paginated_records_threaded(
                 finished_pages.append(current_page)
                 result_records_unsorted[current_page] = data[0]
                 percentage_finished = len(finished_pages) / total_pages * 100
-                #print(f"Finished page {current_page} ({total_pages}/{len(finished_pages)}) ({len(records)}/{total_records}) {percentage_finished}%")
+                print(
+                    f"Finished page {current_page} ({total_pages}/{len(finished_pages)}) ({len(records)}/{total_records}) {percentage_finished}%")
+                data = None
+                del data
+                gc.collect()
             else:
                 break
-            
+            gc.collect()
+
     # sort records
-    for page in range(1, total_pages+1):
+    for page in range(1, total_pages + 1):
         records += result_records_unsorted[page]
     # lazily shaving off any remainder to keep the client happy
     return records[0:record_limit] if record_limit < math.inf else records
 
+
+def _generate_partial_suffixes(total_pages, total_records, rows_per_page) -> list[str]:
+    # Suffix will be 0000-0999, 1000-1999, 2000-2999, and the final one will be x000-xxxx depending on the total records
+    suffixes: list[str] = []
+    for i in range(0, total_pages):
+        left = i * rows_per_page
+        if i == total_pages - 1:
+            right = total_records
+        else:
+            right = (i + 1) * rows_per_page
+        suffixes.append(f"{left:06d}-{right:06d}")
+    return suffixes
+
+def _write_json_file(future: concurrent.futures.Future, out_dir: str, file_name: str):
+    res = future.result()
+    if res:
+        data = res[0]
+        current_page = res[2]
+        json_file_name = f"{file_name}_{current_page}.json"
+        csv_file_name = f"{file_name}_{current_page}.csv"
+        json_output = os.path.join(out_dir, json_file_name)
+        with open(json_output, "w") as f:
+            json.dump(data, f)
+            f.close()
+        
+        
+        csv_output = os.path.join(out_dir, csv_file_name)
+        csv_data = _unpack_json_subfields(data)
+        del data
+        gc.collect()
+        fieldnames = None
+
+        for record in csv_data:
+            fieldnames = record.keys()
+            break
+
+        if not fieldnames or not csv_data:
+            return False, "No data to write to CSV."
+        
+        
+        gc.collect()
+        return json_file_name
+    else:
+        return None
+    
+def _unpack_json_subfields(data: list[dict]) -> list[dict]:
+    """Unpack a list of dicts containing subfields into a list of dicts containing
+    the subfields as top-level keys.
+
+    Args:
+        data (list[dict]): A list of dicts containing subfields.
+
+    Returns:
+        list[dict]: A list of dicts containing the subfields as top-level keys.
+    """
+    
+    data_formatted = []
+    for record in data:
+        record_formatted = {}
+        for key, value in record.items():
+            if isinstance(value, dict):
+                for subfield_key, subfield_value in value.items():
+                    record_formatted[subfield_key] = subfield_value
+            else:
+                record_formatted[key] = value
+        data_formatted.append(record_formatted)
+    return data_formatted
+    
+    
+    
+def _get_paginated_records_threaded_partials(
+        *,
+        app_id: str,
+        url: str,
+        max_attempts: int,
+        record_limit: int,
+        rows_per_page: int,
+        api_key: str = None,
+        timeout: int = None,
+        filters: typing.Union[dict, list] = None,
+) -> Generator[tuple[int, concurrent.futures.Future], None, None]:  
+    records_len: int = 0
+    page = 1
+    total_pages, total_records = get_total_pages_count_and_total_records(
+        url=url,
+        headers=_headers(app_id, api_key),
+        timeout=timeout,
+        max_attempts=max_attempts,
+        rows_per_page=rows_per_page,
+        params={"page": page, "rows_per_page": rows_per_page, "filters": filters}
+    )
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, total_pages)) as executor:
+        while _continue(total_records, records_len, record_limit):
+            # noinspection PyTypeChecker
+            f = executor.submit(
+                _get_page,
+                url=url,
+                headers=_headers(app_id, api_key),
+                timeout=timeout,
+                max_attempts=max_attempts,
+                page=page,
+                rows_per_page=rows_per_page,
+                filters=filters
+            )
+            yield page, f
+            if page >= total_pages:
+                break
+            page += 1
+
+
+def backup(
+        *,
+        app_id: str,
+        api_key: str = None,
+        slug: str = None,
+        obj: str = None,
+        scene: str = None,
+        view: str = None,
+        record_limit: int = None,
+        filters: dict = None,
+        max_attempts: int = 5,
+        timeout: int = 30,
+        custom_url: str = None,
+) -> Generator[tuple[int, concurrent.futures.Future],None,None]:
+    route = _route(obj=obj, scene=scene, view=view)
+    url = _url(slug=slug, route=route, custom_url=custom_url)
+    record_limit = record_limit if record_limit else math.inf
+    filters = json.dumps(filters) if filters else None
+    rows_per_page = (
+        MAX_ROWS_PER_PAGE if record_limit >= MAX_ROWS_PER_PAGE else record_limit
+    )
+    gc.enable()
+    for page_number, future in _get_paginated_records_threaded_partials(
+        app_id=app_id,
+        api_key=api_key,
+        url=url,
+        max_attempts=max_attempts,
+        record_limit=record_limit,
+        rows_per_page=rows_per_page,
+        filters=filters,
+        timeout=15,
+    ): 
+        yield page_number, future
+
+
 def get(
-    *,
-    app_id: str,
-    api_key: str = None,
-    slug: str = None,
-    obj: str = None,
-    scene: str = None,
-    view: str = None,
-    record_limit: int = None,
-    filters: dict = None,
-    max_attempts: int = 5,
-    timeout: int = 30,
-    custom_url: str = None,
+        *,
+        app_id: str,
+        api_key: str = None,
+        slug: str = None,
+        obj: str = None,
+        scene: str = None,
+        view: str = None,
+        record_limit: int = None,
+        filters: dict = None,
+        max_attempts: int = 5,
+        timeout: int = 30,
+        custom_url: str = None,
 ) -> [list, requests.Response]:
     """Get records from a knack object or view. This is the raw stuff with
     incorrect timestamps!
@@ -354,12 +514,12 @@ def get(
         record_limit=record_limit,
         rows_per_page=rows_per_page,
         filters=filters,
-        timeout=30,
+        timeout=15,
     )
 
 
 def get_metadata(
-    *, app_id: str, slug: str = None, timeout: int = 30, max_attempts: int = 5, custom_url: str = None
+        *, app_id: str, slug: str = None, timeout: int = 30, max_attempts: int = 5, custom_url: str = None
 ) -> dict:
     """Fetch Knack application metadata. You can find your app's metadata at:
     `https://api.knack.com/v1/applications/<app_id:str>`.
@@ -397,16 +557,16 @@ def _handle_method(method: str):
 
 
 def record(
-    *,
-    app_id: str,
-    api_key: str,
-    data: dict,
-    method: str,
-    obj: str,
-    slug: str = None,
-    max_attempts: int = 5,
-    timeout: int = 30,
-    custom_url: str = None,
+        *,
+        app_id: str,
+        api_key: str,
+        data: dict,
+        method: str,
+        obj: str,
+        slug: str = None,
+        max_attempts: int = 5,
+        timeout: int = 30,
+        custom_url: str = None,
 ):
     """Create, update, or delete a Knack record.
 
@@ -445,18 +605,18 @@ def record(
 
 
 def upload(
-    *,
-    app_id: str,
-    api_key: str,
-    obj: str,
-    field: str,
-    path: str,
-    asset_type: str,
-    record_id: str = None,
-    slug: str = None,
-    max_attempts: int = 5,
-    timeout: int = 30,
-    custom_url: str = None,
+        *,
+        app_id: str,
+        api_key: str,
+        obj: str,
+        field: str,
+        path: str,
+        asset_type: str,
+        record_id: str = None,
+        slug: str = None,
+        max_attempts: int = 5,
+        timeout: int = 30,
+        custom_url: str = None,
 ):
     """Upload a file or image to Knack. This is a two-step process:
 
@@ -475,7 +635,7 @@ def upload(
         asset_type (str): The type of Knack field you're uploading to. Must be `file` or
             `image`.
         record_id (str, optional): The knack record ID to which the upload will be
-            attached. If `None`, will create a new record. Otherwise will update an
+            attached. If `None`, will create a new record. Otherwise, will update an
             existing record.
         slug (str, optional): Your organization's slug (aka, subdomain). As found in
             your app metadata under accounts/slug.
