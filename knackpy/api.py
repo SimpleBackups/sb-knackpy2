@@ -125,9 +125,9 @@ def _request(
         logger.debug(
             f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
         )
-        print(
-            f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
-        )
+        # print(
+        #     f"{method} to {url} with {params or 'no params'} (Attempt {attempts}/{max_attempts})"  # noqa:E501
+        # )
 
         try:
             res = session.send(prepped, timeout=timeout)
@@ -142,7 +142,7 @@ def _request(
 
             if attempts < max_attempts:
                 logger.debug(f"Error on attempt #{attempts}: {e.__repr__()}")
-                print(f"Error on attempt #{attempts}: {e.__repr__()}")
+                # print(f"Error on attempt #{attempts}: {e.__repr__()}")
                 attempts += 1
                 _random_pause()
                 continue
@@ -251,8 +251,8 @@ def get_total_pages_count_and_total_records(*, url, headers, timeout, max_attemp
     )
     total_records = res.json()["total_records"]
     total_pages = math.ceil(total_records / rows_per_page)
-    print(f"Total records: {total_records}")
-    print(f"Total pages: {total_pages}")
+    # print(f"Total records: {total_records}")
+    # print(f"Total pages: {total_pages}")
     res = None
     del res
     gc.collect()
@@ -284,7 +284,7 @@ def _get_paginated_records_threaded(
     finished_pages = []
     result_records_unsorted = {}  # {page: [records]}
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(20, total_pages)) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, total_pages)) as executor:
         futures = []
         while _continue(total_records, len(records), record_limit):
             futures.append(
@@ -410,7 +410,7 @@ def _get_paginated_records_threaded_partials(
         rows_per_page=rows_per_page,
         params={"page": page, "rows_per_page": rows_per_page, "filters": filters}
     )
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(20, total_pages)) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, total_pages)) as executor:
         while _continue(total_records, records_len, record_limit):
             # noinspection PyTypeChecker
             f = executor.submit(

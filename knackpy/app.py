@@ -276,21 +276,35 @@ class App:
     
     def _write(
         self,
-        future: concurrent.futures.Future,
+        identifier:str,
+        *,
         out_dir: str,
         file_name: str,
-        field_filters: list[str],
-        page_number: int,
-        *,
-        identifier:str = ":_backup",
-        generate=False,
+        field_filters: list[str] = None,
+        delimiter=",",
+        record_limit: int = None,
+        filters: typing.Union[dict, list] = None,
+        future: concurrent.futures.Future,
     ):
-
         fetched_records, _b, current_page = future.result()
-        self.data[identifier] = fetched_records
-        self.records[identifier] = self._records(identifier, generate)
         
-        csv_data = self._unpack_subfields(self.records[identifier], field_filters)
+        if not identifier and len(self.data) == 1:
+            identifier = list(self.data.keys())[0]
+        elif not identifier:
+            raise TypeError("Missing 1 required argument: identifier")
+
+        container = self._find_container(identifier)
+        
+        container_key = container.obj or container.view
+        
+        if not self.data.get(container_key):
+            self.data[container_key] = fetched_records
+            
+        self.records[container_key] = self._records(container_key)
+        
+        records = self.records[container_key]
+        
+        csv_data = self._unpack_subfields(records, field_filters)
 
         fieldnames = None
 
@@ -300,38 +314,38 @@ class App:
 
         if not fieldnames or not csv_data:
             print (f"No data to write to CSV for page {current_page}")
+            return False, "No data to write to CSV."
         
-        json_file_path = os.path.join(out_dir, f"{file_name}_{current_page}.json")
+        # json_file_path = os.path.join(out_dir, f"{file_name}_{current_page}.json")
         csv_file_path = os.path.join(out_dir, f"{file_name}_{current_page}.csv")
         
-        with open(json_file_path, "w") as fout:
-            json.dump(csv_data, fout)
-            fout.close()
+        # with open(json_file_path, "w") as fout:
+        #     json.dump(csv_data, fout)
+        #     fout.close()
             
         with open(csv_file_path, "w") as fout:
             writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=",")
             writer.writeheader()
             writer.writerows(csv_data)
-            fout.close()
             
         print (f"Finished writing page {current_page} to {file_name}")
         
 
     def backup(
             self,
-            identifier: str = None,
-            refresh: bool = False,
+            identifier: str,
+            *,
+            out_dir: str = "_csv",
+            file_name: str = "",
+            field_filters: list = None,
+            delimiter=",",
             record_limit: int = None,
             filters: typing.Union[dict, list] = None,
-            generate=False,
-            file_name: str = None,
-            out_dir: str = "_csv",
-            field_filters: list = None,
     ):
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 
-        for page_number, future in api.backup(
+        for _page_number, future in api.backup(
             app_id=self.app_id,
             api_key=self.api_key,
             obj=identifier,
@@ -345,7 +359,7 @@ class App:
             custom_url=self.custom_url,
         ):
             # print (f"Started writing page {page_number} to {file_name}")
-            future.add_done_callback(lambda f: self._write(f, out_dir, file_name, field_filters, page_number))
+            future.add_done_callback(lambda f: self._write(future=f, out_dir=out_dir, file_name=file_name, field_filters=field_filters,delimiter=delimiter,filters=filters,identifier=identifier))
 
 
 
