@@ -279,7 +279,7 @@ def _get_paginated_records_threaded(
                                                                          rows_per_page=rows_per_page,
                                                                          params={"page": page,
                                                                                  "rows_per_page": rows_per_page,
-                                                                                 "filters": filters})
+                                                                                 "filters": filters})-
     # pages = [ i for i in range(1, total_pages+1)]
     finished_pages = []
     result_records_unsorted = {}  # {page: [records]}
@@ -330,7 +330,7 @@ def _get_paginated_records_threaded_partials(
         api_key: str = None,
         timeout: int = None,
         filters: typing.Union[dict, list] = None,
-) -> Generator[tuple[int, concurrent.futures.Future], None, None]:  
+):  
     records_len: int = 0
     page = 1
     total_pages, total_records = get_total_pages_count_and_total_records(
