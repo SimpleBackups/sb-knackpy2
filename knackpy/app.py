@@ -280,7 +280,7 @@ class App:
         *,
         out_dir: str,
         file_name: str,
-        field_filters: list[str] = None,
+        field_filters: list = None,
         delimiter=",",
         record_limit: int = None,
         filters: typing.Union[dict, list] = None,
