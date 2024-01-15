@@ -372,7 +372,7 @@ def backup(
         max_attempts: int = 5,
         timeout: int = 30,
         custom_url: str = None,
-) -> Generator[tuple[int, concurrent.futures.Future],None,None]:
+):
     route = _route(obj=obj, scene=scene, view=view)
     url = _url(slug=slug, route=route, custom_url=custom_url)
     record_limit = record_limit if record_limit else math.inf
