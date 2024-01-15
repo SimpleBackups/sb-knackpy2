@@ -316,12 +316,12 @@ class App:
             print (f"No data to write to CSV for page {current_page}")
             return False, "No data to write to CSV."
         
-        # json_file_path = os.path.join(out_dir, f"{file_name}_{current_page}.json")
+        json_file_path = os.path.join(out_dir, f"{file_name}_{current_page}.json")
         csv_file_path = os.path.join(out_dir, f"{file_name}_{current_page}.csv")
         
-        # with open(json_file_path, "w") as fout:
-        #     json.dump(csv_data, fout)
-        #     fout.close()
+        with open(json_file_path, "w") as fout:
+            json.dump(csv_data, fout)
+            fout.close()
             
         with open(csv_file_path, "w") as fout:
             writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=",")
