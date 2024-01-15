@@ -88,28 +88,3 @@ def humanize_bytes(bytes_):
     s = round(bytes_ / p, 2)
     return f"{s}{size_name[i]}"
 
-
-
-
-import json 
-import pandas 
-  
-  
-def read_json(filename: str) -> dict: 
-  
-    try: 
-        with open(filename, "r") as f: 
-            data = json.loads(f.read()) 
-    except: 
-        raise Exception(f"Reading {filename} file encountered an error") 
-  
-    return data 
-  
-  
-def create_dataframe(data: list, headers: list[str] = []) -> pandas.DataFrame: 
-  
-    # Declare an empty dataframe to append records 
-    df = pandas.json_normalize(data)
-    
-    
-    return df
