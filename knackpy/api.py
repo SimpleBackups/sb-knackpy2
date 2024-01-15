@@ -277,9 +277,8 @@ def _get_paginated_records_threaded(
                                                                          headers=_headers(app_id, api_key),
                                                                          timeout=timeout, max_attempts=max_attempts,
                                                                          rows_per_page=rows_per_page,
-                                                                         params={"page": page,
-                                                                                 "rows_per_page": rows_per_page,
-                                                                                 "filters": filters})-
+                                                                         params={"page": page,"rows_per_page": rows_per_page,"filters": filters}
+                                                                         )
     # pages = [ i for i in range(1, total_pages+1)]
     finished_pages = []
     result_records_unsorted = {}  # {page: [records]}
