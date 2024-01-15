@@ -304,8 +304,8 @@ def _get_paginated_records_threaded(
                 finished_pages.append(current_page)
                 result_records_unsorted[current_page] = data[0]
                 percentage_finished = len(finished_pages) / total_pages * 100
-                print(
-                    f"Finished page {current_page} ({total_pages}/{len(finished_pages)}) ({len(records)}/{total_records}) {percentage_finished}%")
+                # print(
+                #     f"Finished page {current_page} ({total_pages}/{len(finished_pages)}) ({len(records)}/{total_records}) {percentage_finished}%")
                 data = None
                 del data
                 gc.collect()

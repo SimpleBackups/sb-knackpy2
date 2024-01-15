@@ -313,7 +313,7 @@ class App:
             break
 
         if not fieldnames or not csv_data:
-            print (f"No data to write to CSV for page {current_page}")
+            # print (f"No data to write to CSV for page {current_page}")
             return False, "No data to write to CSV."
         
         json_file_path = os.path.join(out_dir, f"{file_name}_{current_page}.json")
@@ -328,7 +328,6 @@ class App:
             writer.writeheader()
             writer.writerows(csv_data)
             
-        print (f"Finished writing page {current_page} to {file_name}")
         
 
     def backup(
@@ -360,6 +359,8 @@ class App:
         ):
             # print (f"Started writing page {page_number} to {file_name}")
             future.add_done_callback(lambda f: self._write(future=f, out_dir=out_dir, file_name=file_name, field_filters=field_filters,delimiter=delimiter,filters=filters,identifier=identifier))
+            
+        return True, file_name
 
 
 
