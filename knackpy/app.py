@@ -572,8 +572,8 @@ class App:
             writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=delimiter)
             writer.writeheader()
             writer.writerows(csv_data)
-        # with open(json_fname, "w") as fout:
-        #     json.dump(csv_data, fout)
+        with open(json_fname, "w") as fout:
+            json.dump(csv_data, fout)
 
         return True, csv_fname
 
