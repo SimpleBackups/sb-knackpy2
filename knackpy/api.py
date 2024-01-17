@@ -11,7 +11,7 @@ from _io import BufferedReader
 
 import requests
 
-from .models import MAX_ROWS_PER_PAGE
+from .models import MAX_ROWS_PER_PAGE, MIN_WORKERS
 
 logger = logging.getLogger(__name__)
 
@@ -283,7 +283,7 @@ def _get_paginated_records_threaded(
     finished_pages = []
     result_records_unsorted = {}  # {page: [records]}
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1,min(40, total_pages))) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1,min(MIN_WORKERS, total_pages))) as executor:
         futures = []
         while _continue(total_records, len(records), record_limit):
             futures.append(
@@ -341,7 +341,7 @@ def _get_paginated_records_threaded_partials(
         params={"page": page, "rows_per_page": rows_per_page, "filters": filters}
     )
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1,min(40, total_pages))) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1,min(MIN_WORKERS, total_pages))) as executor:
         while _continue(total_records, records_len, record_limit):
             # noinspection PyTypeChecker
             f = executor.submit(

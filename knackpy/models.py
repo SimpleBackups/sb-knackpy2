@@ -142,3 +142,5 @@ TIMEZONES = [
     },
     {"common_name": "Line Islands", "iana_name": "Pacific/Kiritimati"},
 ]
+
+MIN_WORKERS = 8
