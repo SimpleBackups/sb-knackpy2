@@ -323,6 +323,7 @@ class App:
             json.dump(csv_data, fout)
             fout.close()
             
+        
         with open(csv_file_path, "w") as fout:
             writer = csv.DictWriter(fout, fieldnames=fieldnames, delimiter=",")
             writer.writeheader()
