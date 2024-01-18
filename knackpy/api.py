@@ -183,7 +183,7 @@ def _get_paginated_records(
             method="GET",
             url=url,
             headers=headers,
-            timeout=8,
+            timeout=60,
             max_attempts=max_attempts,
             params=params,
         )
@@ -390,7 +390,7 @@ def backup(
         record_limit=record_limit,
         rows_per_page=rows_per_page,
         filters=filters,
-        timeout=15,
+        timeout=60,
     ): 
         yield page_number, future
 
@@ -445,7 +445,7 @@ def get(
         record_limit=record_limit,
         rows_per_page=rows_per_page,
         filters=filters,
-        timeout=15,
+        timeout=60,
     )
 
 
