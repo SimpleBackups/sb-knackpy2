@@ -29,18 +29,29 @@ def generate_containers(metadata):
 
     Container = collections.namedtuple("Container", "obj view scene name")
 
-    obj_containers = [
-        Container(obj=obj["key"], scene=None, view=None, name=obj["name"])
-        for obj in metadata["objects"]
-    ]
+    # Helper function to create Container safely
+    def safe_create_container(obj=None, view=None, scene=None, name=None):
+        return Container(obj=obj, view=view, scene=scene, name=name)
 
-    view_containers = [
-        Container(obj=None, view=view["key"], scene=scene["key"], name=view["name"])
-        for scene in metadata["scenes"]
-        for view in scene["views"]
-    ]
+    # Create object containers with exception handling
+    obj_containers = []
+    for obj in metadata["objects"]:
+        try:
+            obj_containers.append(safe_create_container(obj=obj["key"], name=obj["name"]))
+        except KeyError as e:
+            continue
+
+    # Create view containers with exception handling
+    view_containers = []
+    for scene in metadata["scenes"]:
+        for view in scene["views"]:
+            try:
+                view_containers.append(safe_create_container(view=view["key"], scene=scene["key"], name=view["name"]))
+            except KeyError as e:
+                continue
 
     return obj_containers + view_containers
+
 
 
 def correct_knack_timestamp(mills_timestamp, timezone):

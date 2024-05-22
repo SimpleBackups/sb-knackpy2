@@ -20,24 +20,27 @@ def set_field_def_views(key: str, scenes: list):
     views = []
     for scene in scenes:
         for view in scene["views"]:
-            if view["type"] == "table":
+            try:
+                if view["type"] == "table":
 
-                # must ignore "link" columns, etc
-                field_keys = [
-                    column["field"]["key"]
-                    for column in view["columns"]
-                    if column.get("field")
-                ]
+                    # must ignore "link" columns, etc
+                    field_keys = [
+                        column["field"]["key"]
+                        for column in view["columns"]
+                        if column.get("field")
+                    ]
 
-                if key in field_keys:
-                    views.append(view["key"])
+                    if key in field_keys:
+                        views.append(view["key"])
 
-                # associate the id field every view
-                elif key == "id":
-                    views.append(view["key"])
+                    # associate the id field every view
+                    elif key == "id":
+                        views.append(view["key"])
 
-            else:
-                # todo: should we handle non-table views?
+                else:
+                    # todo: should we handle non-table views?
+                    continue
+            except KeyError as e:   
                 continue
 
     return views
